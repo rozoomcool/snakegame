@@ -3,43 +3,43 @@ package org.example;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
-import java.util.LinkedList;
 import java.util.Random;
 
 public class SnakeGame extends JPanel implements ActionListener, KeyListener {
 
-    private final int TILE_SIZE = 20;  // Размер клетки
-    private final int WIDTH = 600;     // Ширина поля
-    private final int HEIGHT = 600;    // Высота поля
-    private final int BOARD_WIDTH = WIDTH / TILE_SIZE; // Количество клеток по ширине
-    private final int BOARD_HEIGHT = HEIGHT / TILE_SIZE; // Количество клеток по высоте
+    private final int TILE_SIZE = 20;
+    private final int WIDTH = 600;
+    private final int HEIGHT = 600;
+    private final int BOARD_WIDTH = WIDTH / TILE_SIZE;
+    private final int BOARD_HEIGHT = HEIGHT / TILE_SIZE;
+    private final int GAP = 2;
 
-    private LinkedList<Point> snake;  // Змейка
-    private Point food;                    // Еда
-    private int direction;                 // Направление движения змейки
-    private boolean gameOver;              // Статус игры
+    private Snake snake;
+    private Point food;
+    private int direction;
+    private boolean gameOver;
 
-    private Timer timer;  // Таймер для обновления игры
+    private final Timer timer = new Timer(100, this);
 
     public SnakeGame() {
-        snake = new LinkedList<>();
-        snake.add(new Point(BOARD_WIDTH / 2, BOARD_HEIGHT / 2));  // Начальная позиция змейки
-        direction = KeyEvent.VK_RIGHT;  // Направление по умолчанию - вправо
-        generateFood();  // Создаем еду
-        gameOver = false;
-
-        // Инициализация панели
         setPreferredSize(new Dimension(WIDTH, HEIGHT));
         setBackground(Color.BLACK);
         addKeyListener(this);
         setFocusable(true);
 
-        // Таймер для обновления состояния игры
-        timer = new Timer(100, this);  // Таймер с задержкой 100 мс
-        timer.start();
+        restart();
     }
 
-    // Метод для отрисовки игрового поля
+    private void restart() {
+        snake = new Snake();
+        snake.initHead(BOARD_WIDTH / 2, BOARD_HEIGHT / 2);
+        direction = KeyEvent.VK_RIGHT;
+        generateFood();
+        gameOver = false;
+        timer.start();
+        repaint();
+    }
+
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
@@ -49,14 +49,24 @@ public class SnakeGame extends JPanel implements ActionListener, KeyListener {
             g.setFont(new Font("Arial", Font.BOLD, 16));
             g.drawString("Game Over, enter ESC to restart.", WIDTH / 4, HEIGHT / 2);
         } else {
+            // Рисуем поле
+            for (int i = 0; i < BOARD_WIDTH; i++) {
+                for (int j = 0; j < BOARD_HEIGHT; j++) {
+                    g.setColor((i + j) % 2 == 0 ? Color.GREEN.darker() : Color.GREEN);
+                    g.fillRect(i * TILE_SIZE, j * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+                }
+            }
+
             // Рисуем еду
             g.setColor(Color.RED);
-            g.fillRect(food.x * TILE_SIZE, food.y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+            g.fillRoundRect(food.x * TILE_SIZE + GAP, food.y * TILE_SIZE + GAP, TILE_SIZE - GAP * 2, TILE_SIZE - GAP * 2, TILE_SIZE / 2 - GAP, TILE_SIZE / 2 - GAP);
 
             // Рисуем змейку
-            g.setColor(Color.GREEN);
-            for (Point p : snake) {
-                g.fillRect(p.x * TILE_SIZE, p.y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+            g.setColor(Color.BLUE.brighter());
+            Point head = snake.getHead();
+            g.fillRect(head.x * TILE_SIZE + (GAP / 2), head.y * TILE_SIZE + (GAP / 2), TILE_SIZE - (GAP / 2) * 2, TILE_SIZE - (GAP / 2) * 2);
+            for (Point p : snake.getBody()) {
+                g.fillRect(p.x * TILE_SIZE + GAP, p.y * TILE_SIZE + GAP, TILE_SIZE - GAP * 2, TILE_SIZE - GAP * 2);
             }
         }
     }
@@ -68,47 +78,37 @@ public class SnakeGame extends JPanel implements ActionListener, KeyListener {
             return;
         }
 
-        // Двигаем змейку
-        Point head = snake.get(0);
-        Point newHead = null;
-
-        switch (direction) {
-            case KeyEvent.VK_UP:
-                newHead = new Point(head.x, head.y - 1);
-                break;
-            case KeyEvent.VK_DOWN:
-                newHead = new Point(head.x, head.y + 1);
-                break;
-            case KeyEvent.VK_LEFT:
-                newHead = new Point(head.x - 1, head.y);
-                break;
-            case KeyEvent.VK_RIGHT:
-                newHead = new Point(head.x + 1, head.y);
-                break;
-        }
-
-        // Проверка на столкновение с границами поля или с телом змейки
-        if (newHead.x < 0 || newHead.y < 0 || newHead.x >= BOARD_WIDTH || newHead.y >= BOARD_HEIGHT || snake.contains(newHead)) {
+        Point newHead = getNewPoint();
+        if (newHead.x < 0 || newHead.y < 0 || newHead.x >= BOARD_WIDTH || newHead.y >= BOARD_HEIGHT || snake.getBody().contains(newHead)) {
             gameOver = true;
             timer.stop();
             repaint();
             return;
         }
 
-        // Добавляем новый сегмент змейки в начало
-        snake.add(0, newHead);
+        snake.addHead(newHead);
 
-        // Проверка на поедание еды
         if (newHead.equals(food)) {
-            generateFood();  // Генерация новой еды
+            generateFood();
         } else {
-            snake.remove(snake.size() - 1);  // Удаляем последний сегмент, если не съели еду
+            snake.removeTail();
         }
 
-        repaint();  // Перерисовываем поле
+        repaint();
     }
 
-    // Генерация новой еды в случайной позиции
+    private Point getNewPoint() {
+        Point head = snake.getHead();
+
+        return switch (direction) {
+            case KeyEvent.VK_UP -> new Point(head.x, head.y - 1);
+            case KeyEvent.VK_DOWN -> new Point(head.x, head.y + 1);
+            case KeyEvent.VK_LEFT -> new Point(head.x - 1, head.y);
+            case KeyEvent.VK_RIGHT -> new Point(head.x + 1, head.y);
+            default -> null;
+        };
+    }
+
     private void generateFood() {
         Random rand = new Random();
         int x = rand.nextInt(BOARD_WIDTH);
@@ -116,19 +116,12 @@ public class SnakeGame extends JPanel implements ActionListener, KeyListener {
         food = new Point(x, y);
     }
 
-    // Обработка нажатий клавиш для управления змейкой
     @Override
     public void keyPressed(KeyEvent e) {
         int key = e.getKeyCode();
 
         if (gameOver && key == KeyEvent.VK_ESCAPE) {
-            this.gameOver = false;
-            snake = new LinkedList<Point>();
-            snake.add(new Point(BOARD_WIDTH / 2, BOARD_HEIGHT / 2));  // Начальная позиция змейки
-            timer.start();
-            direction = KeyEvent.VK_RIGHT;  // Направление по умолчанию - вправо
-            generateFood();
-            repaint();
+            restart();
         }
 
         if (key == KeyEvent.VK_UP && direction != KeyEvent.VK_DOWN) {
