@@ -79,7 +79,14 @@ public class SnakeGame extends JPanel implements ActionListener, KeyListener {
         }
 
         Point newHead = getNewPoint();
-        if (newHead.x < 0 || newHead.y < 0 || newHead.x >= BOARD_WIDTH || newHead.y >= BOARD_HEIGHT || snake.getBody().contains(newHead)) {
+//        if (newHead.x < 0 || newHead.y < 0 || newHead.x >= BOARD_WIDTH || newHead.y >= BOARD_HEIGHT || snake.getBody().contains(newHead)) {
+//            gameOver = true;
+//            timer.stop();
+//            repaint();
+//            return;
+//        }
+
+        if (snake.getBody().contains(newHead)) {
             gameOver = true;
             timer.stop();
             repaint();
@@ -101,10 +108,10 @@ public class SnakeGame extends JPanel implements ActionListener, KeyListener {
         Point head = snake.getHead();
 
         return switch (direction) {
-            case KeyEvent.VK_UP -> new Point(head.x, head.y - 1);
-            case KeyEvent.VK_DOWN -> new Point(head.x, head.y + 1);
-            case KeyEvent.VK_LEFT -> new Point(head.x - 1, head.y);
-            case KeyEvent.VK_RIGHT -> new Point(head.x + 1, head.y);
+            case KeyEvent.VK_UP -> new Point(head.x, head.y - 1 < 0 ? BOARD_HEIGHT : head.y - 1);
+            case KeyEvent.VK_DOWN -> new Point(head.x, head.y + 1 > BOARD_HEIGHT ? 0 : head.y + 1);
+            case KeyEvent.VK_LEFT -> new Point(head.x - 1 < 0 ? BOARD_WIDTH : head.x - 1, head.y);
+            case KeyEvent.VK_RIGHT -> new Point(head.x + 1 > BOARD_WIDTH ? 0 : head.x + 1, head.y);
             default -> null;
         };
     }
